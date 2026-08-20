@@ -1,3 +1,6 @@
-docs/implementation/composition-runtime.md: b5e6e7992a53b8cf178c42474f9430e45c252009
-docs/implementation/composition-runtime.zh.md: 9f337e32f5066726896221604f9624600abaf99e
-
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/implementation/composition-runtime.md
+composition-runtime.md: eddeefbd25f4e13cb11bd586082d353bd5027507
+composition-runtime.zh.md: c838383444190c5f872e3e9e69a1d7888eb07686

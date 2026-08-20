@@ -1,3 +1,6 @@
-docs/implementation/core-agent-loop.md: 4c46541d5d94aaec97ae7a778ef2118c26e5e468
-docs/implementation/core-agent-loop.zh.md: 71e18b18e323fcc099092277f4cf22af4cf60c51
-
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/implementation/core-agent-loop.md
+core-agent-loop.md: ed926812336c41205608a5f5b3befca2cac23dbf
+core-agent-loop.zh.md: 937ae923bf6d9b995dc5215799e0bc1c97e0532e

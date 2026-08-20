@@ -42,7 +42,7 @@ Key source: `packages/core/agent/src/index.ts:450-509` (enter/announce lifecycle
 
 ## Guard plugins
 
-`dsh-guard-timeout-policy` wraps `tools/execute`: reads `ctx.tools.get(name, agent)?.timeoutMs`, arms a `deadline(exec.signal, timeoutMs, TOOL_TIMEOUT)`, swaps the signal, delegates `next()`, then restores the upstream signal in `finally`. Only if its own timer fired replaces the tool's abort-result with a structured `TOOL_TIMEOUT` result. `dsh-guard-repeat-tool-reminder` counts consecutive repeat calls per tool via canonicalized argument keys in a per-agent `WeakMap`, and prepends reminder messages onto `additionalContexts` of post-execute decisions when a threshold is hit.
+`dsh-tool-call-timeout-policy` wraps `tools/execute`: reads `ctx.tools.get(name, agent)?.timeoutMs`, arms a `deadline(exec.signal, timeoutMs, TOOL_TIMEOUT)`, swaps the signal, delegates `next()`, then restores the upstream signal in `finally`. Only if its own timer fired replaces the tool's abort-result with a structured `TOOL_TIMEOUT` result. `dsh-repeat-tool-reminder` counts consecutive repeat calls per tool via canonicalized argument keys in a per-agent `WeakMap`, and prepends reminder messages onto `additionalContexts` of post-execute decisions when a threshold is hit.
 
 ## Context plugins
 

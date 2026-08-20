@@ -6,7 +6,7 @@
 
 ## Skill 注册表 (`dsh-skill`, `dsh-skill-filesystem`)
 
-`SkillRegistry` 将注册存储在调用上下文的作用域层（`ScopedLayers`）中，因此 Agent 预设的挂载绑定到该作用域。`collect` 合并全局和作用域链层，使用修订键缓存（有界 LRU，最多 2 次重试以应对并发修订变更）。候选排序：较低的 `rank` 然后注册顺序；最近的层直接遮蔽。`registerProvider` 返回确切的效果回收器。`dsh-skill-filesystem` 是本地文件系统提供者：根目录按项目 `.dsh/agents`、自定义、用户 `~/.dsh/agents` 和捆绑包解析，rank 100-600。读取在可用时通过 `ctx.fs` 进行。`WatchManager` 保持引用计数的根状态，使用 chokidar 的 `awaitWriteFinish` 稳定性和微任务聚合的失效。`edit`/`write` 工具的 `fs/observed` 变更在路径可能为 Skill 时触发失效。`dsh-tool-skill` 发布持久会话 Skill 目录，并提供面向模型的 `skill` 加载器工具。目录瀑布流将条目的 SHA-256 摘要与可见的持久目录历史进行比较；变更时发布 `<available_skills>` 替换。直接用户文本中的 `/name` 手势标记触发 `user-invocable` Skill 的确定性指令注入。
+`SkillRegistry` 将注册存储在调用上下文的作用域层（`ScopedLayers`）中，因此 Agent 预设的挂载绑定到该作用域。`collect` 合并全局和作用域链层，使用修订键缓存（有界 LRU，最多 2 次重试以应对并发修订变更）。候选排序：较低的 `rank` 然后注册顺序；最近的层直接遮蔽。`registerProvider` 返回确切的效果回收器。`dsh-skill-filesystem` 是本地文件系统提供者：根目录按项目 `.dsh/skills` 与 `.agents/skills`、自定义、用户 `~/.dsh/skills` 与 `~/.agents/skills` 和捆绑包解析，rank 100-600。读取在可用时通过 `ctx.fs` 进行。`WatchManager` 保持引用计数的根状态，使用 chokidar 的 `awaitWriteFinish` 稳定性和微任务聚合的失效。`edit`/`write` 工具的 `fs/observed` 变更在路径可能为 Skill 时触发失效。`dsh-tool-skill` 发布持久会话 Skill 目录，并提供面向模型的 `skill` 加载器工具。目录瀑布流将条目的 SHA-256 摘要与可见的持久目录历史进行比较；变更时发布 `<available_skills>` 替换。直接用户文本中的 `/name` 手势标记触发 `user-invocable` Skill 的确定性指令注入。
 
 ## 子代理委托 (`dsh-subagent`)
 

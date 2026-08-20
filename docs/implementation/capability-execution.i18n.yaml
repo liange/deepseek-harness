@@ -1,3 +1,6 @@
-docs/implementation/capability-execution.md: d72a15291bc5808df266b628c7905c28b879910c
-docs/implementation/capability-execution.zh.md: 1475c07cc08c540ef1edc1cce3149aa855e81e79
-
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/implementation/capability-execution.md
+capability-execution.md: d72a15291bc5808df266b628c7905c28b879910c
+capability-execution.zh.md: 1475c07cc08c540ef1edc1cce3149aa855e81e79

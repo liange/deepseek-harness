@@ -2,7 +2,7 @@
 
 [English](core-agent-loop.md) | 中文
 
-阐述 Agent 驱动引擎、会话日志、工具注册表和提示词装配的内部实现。类型定义参见 [subsystems/core.md](../subsystems/core.md) 和 [subsystems/session.md](../subsystems/session.md)。
+阐述 Agent 驱动引擎、会话日志、工具注册表和提示词装配的内部实现。`Agent` 与 `AgentLoop` 类型定义参见 [subsystems/core.md](../subsystems/core.md)，`SessionEventMap` 词汇参见 [subsystems/session.md](../subsystems/session.md)。
 
 ## Agent 循环驱动 (`dsh-agent-loop`)
 
@@ -42,7 +42,7 @@
 
 ## 守卫插件
 
-`dsh-guard-timeout-policy` 包装 `tools/execute`：读取 `ctx.tools.get(name, agent)?.timeoutMs`，设置一个 `deadline(exec.signal, timeoutMs, TOOL_TIMEOUT)`，交换信号，委托 `next()`，然后在 `finally` 中恢复上游信号。仅当它自己的定时器触发时，才将工具的中止结果替换为结构化的 `TOOL_TIMEOUT` 结果。`dsh-guard-repeat-tool-reminder` 通过规范化的参数键在按 Agent 的 `WeakMap` 中计算每个工具的连续重复调用次数，并在达到阈值时将提醒消息添加到后执行决策的 `additionalContexts` 中。
+`dsh-tool-call-timeout-policy` 包装 `tools/execute`：读取 `ctx.tools.get(name, agent)?.timeoutMs`，设置一个 `deadline(exec.signal, timeoutMs, TOOL_TIMEOUT)`，交换信号，委托 `next()`，然后在 `finally` 中恢复上游信号。仅当它自己的定时器触发时，才将工具的中止结果替换为结构化的 `TOOL_TIMEOUT` 结果。`dsh-repeat-tool-reminder` 通过规范化的参数键在按 Agent 的 `WeakMap` 中计算每个工具的连续重复调用次数，并在达到阈值时将提醒消息添加到后执行决策的 `additionalContexts` 中。
 
 ## 上下文插件
 

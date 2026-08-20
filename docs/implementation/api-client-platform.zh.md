@@ -8,9 +8,9 @@
 
 Typert 系统有四层。`dsh-typert-protocol` 定义编译器无关协议：`@Remote`/`@RemoteScope` 类方法装饰器通过 `addInitializer` 在 `WeakMap` 中记录标记。`InvocationDescriptor` 携带服务、命名空间、方法、编解码器（严格 Zod 或 SRC-JSON）和可选取消信号。`dsh-typert-generator` 是 TypeScript 编译器：`WorkspaceAnalyzer` 解析每个面的聚合 tsconfig，构建 `ts.Program`，并将 Cordis 服务、事件和标记的 Typert 根提取到 `FaceModel` 中。`FaceModelEmitter.emit(package)` 生成 `typert.host` JS/d.ts 工件，带有 Zod v4 模式。`typertPlugin`（tsdown 插件）通过 `ts.transpileModule` 降低装饰器，并在 `writeBundle` 中写入工件。`dsh-typert-loader` 自动注册包的 `./typert` 主机面工件：它增量扫描 Loader 条目，通过微任务刷新协调脏名称，并在 `ctx.typert.register()` 之前验证每个清单（包所有权、面、zod 实例、调用描述符）。`dsh-typert-registry` 是运行时注册表：`DescriptorStore` 按端点和 ID 保存条目；`LocalStore` 托管活跃组合的定义；`RemoteStore` 在 Cordis 效果中拥有注册；`LookupStore` 将提供者注册与解析器配置分离；`ContextStore` 具有 `registerHost`/`configureHost` 和 `registerClient`。
 
-## JSON-RPC SDK (`dsh-sdk-protocol`, `dsh-sdk-server`, `dsh-sdk-client`)
+## JSON-RPC SDK (`dsh-sdk-protocol`, `dsh-sdk-jsonrpc-server`, `dsh-sdk-client`)
 
-`dsh-sdk-protocol` 定义线协议：通过 stdio 的换行分隔 JSON-RPC 2.0。`JsonRpcLineTransport` 通过 `StringDecoder` 累积 UTF-8，按换行分割，并通过 `pending` Map 关联请求。线词汇：`InitializeParams/Result`、`SessionPromptParams/Result` 和四个服务器→客户端通知（`session.event`、`session.status`、`subagent.started`、`subagent.finished`）。`dsh-sdk-server` 实现 `HarnessSdkJsonRpcServer`：构造函数订阅 Cordis 事件流并将其作为通知转发。`initialize` 验证 `maxTokens`，记录 cwd/provider/model，并挂载 DeepSeek 提供者纤维。`prompt` 惰性创建 Agent+Session 对并 `followup` 用户消息。`shutdown` 是记忆化的异步拆卸。`dsh-sdk-client` 是低级客户端：`HarnessClient` 直接生成运行时，通过 stdio 使用 ndjson JSON-RPC 通信，并实现 `initialize`/`prompt`/`shutdown`。通知扇出到带有队列和等待器的 `NotificationSubscription`。拆卸是私有阶梯：stdin EOF → SIGTERM → SIGKILL，每个阶段与无引用的定时器竞争退出。
+`dsh-sdk-protocol` 定义线协议：通过 stdio 的换行分隔 JSON-RPC 2.0。`JsonRpcLineTransport` 通过 `StringDecoder` 累积 UTF-8，按换行分割，并通过 `pending` Map 关联请求。线词汇：`InitializeParams/Result`、`SessionPromptParams/Result` 和四个服务器→客户端通知（`session.event`、`session.status`、`subagent.started`、`subagent.finished`）。`dsh-sdk-jsonrpc-server` 实现 `HarnessSdkJsonRpcServer`：构造函数订阅 Cordis 事件流并将其作为通知转发。`initialize` 验证 `maxTokens`，记录 cwd/provider/model，并挂载 DeepSeek 提供者纤维。`prompt` 惰性创建 Agent+Session 对并 `followup` 用户消息。`shutdown` 是记忆化的异步拆卸。`dsh-sdk-client` 是低级客户端：`HarnessClient` 直接生成运行时，通过 stdio 使用 ndjson JSON-RPC 通信，并实现 `initialize`/`prompt`/`shutdown`。通知扇出到带有队列和等待器的 `NotificationSubscription`。拆卸是私有阶梯：stdin EOF → SIGTERM → SIGKILL，每个阶段与无引用的定时器竞争退出。
 
 ## ACP 服务器 (`dsh-acp`)
 
@@ -32,7 +32,7 @@ Typert 系统有四层。`dsh-typert-protocol` 定义编译器无关协议：`@R
 
 ## UI 槽位组合
 
-每个 ui-* 包是一个功能，带有 `src/client/` 浏览器端和存根节点端。组合只有一个 API：`ctx.slots.register({ name, children?, store?, inject?, locale? }, Component)`。`children` 对象同时是组件渲染哪些槽位的声明和授权——渲染未声明的槽位在加载时失败。组件属性是四个派生的份额：`PropsRuntime<K>`（标准钩子）、`PropsRenderSlots<S>`（子键）、`PropsStore<H>`（存储工厂），加上注入面。五个常设钩子席位：`useSession`、`useSessions`、`useWorkspaces`、`useStore`、`renderSlot`。`dsh-ui-slots` 提供框架核心：`SlotCore` 注册表，具有排他所有权强制执行。`dsh-ui-primitives` 提供通过 `--dsw-*` 令牌样式的无 Cordis React 原语。`dsh-ui-conversation` 是聊天视图领域：对话节点渲染、编写器机器和视图选项卡。`dsh-ui-layout` 提供带有四个子槽位的 AppFrame。`dsh-client-locale` 提供双语区域设置，带有类型化的 `LocaleNamespaceMap` 和修订键控绑定。
+每个 ui-* 包是一个功能，带有 `src/client/` 浏览器端和存根节点端。组合只有一个 API：`ctx.slots.register({ name, children?, store?, inject?, locale? }, Component)`。`children` 对象同时是组件渲染哪些槽位的声明和授权——渲染未声明的槽位在加载时失败。组件属性是四个派生的份额：`PropsRuntime<K>`（标准钩子）、`PropsRenderSlots<S>`（子键）、`PropsStore<H>`（存储工厂），加上注入面。五个常设钩子席位：`useSession`、`useSessions`、`useWorkspaces`、`useStore`、`renderSlot`。`dsh-client-ui-slots` 提供框架核心：`SlotCore` 注册表，具有排他所有权强制执行。`dsh-client-ui-primitives` 提供通过 `--dsw-*` 令牌样式的无 Cordis React 原语。`dsh-client-ui-conversation` 是聊天视图领域：对话节点渲染、编写器机器和视图选项卡。`dsh-client-ui-layout` 提供带有四个子槽位的 AppFrame。`dsh-client-locale` 提供双语区域设置，带有类型化的 `LocaleNamespaceMap` 和修订键控绑定。
 
 ## 基础设施工具
 

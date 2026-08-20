@@ -1,3 +1,6 @@
-docs/implementation/llm-and-models.md: b8e94781170bdd4f5d9e54d893aa71d9e9ef42c6
-docs/implementation/llm-and-models.zh.md: b086fb3e3f0c9a57a153413a2416588b88001284
-
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/implementation/llm-and-models.md
+llm-and-models.md: b8e94781170bdd4f5d9e54d893aa71d9e9ef42c6
+llm-and-models.zh.md: d9c71ffe5c35613b51003975635e3e8ea332941b

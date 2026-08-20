@@ -2,7 +2,7 @@
 
 [English](llm-and-models.md) | 中文
 
-阐述 LLM 服务、适配器、流式传输和 Token 计量器的内部实现。类型定义参见 [subsystems/llm-streaming.md](../subsystems/llm-streaming.md) 和 [subsystems/token-meter.md](../subsystems/token-meter.md)。
+阐述 LLM 服务、适配器、流式传输和 Token 计量器的内部实现。`Message`/`ContentBlock` 词汇参见 [subsystems/llm-streaming.md](../subsystems/llm-streaming.md)，Token 计量器类型参见 [subsystems/token-meter.md](../subsystems/token-meter.md)。
 
 ## LLM 运行时 (`dsh-llm`)
 

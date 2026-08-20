@@ -1,3 +1,6 @@
-docs/implementation/api-client-platform.md: 3ac2b8273e5af0da6126e399ebe4cac9ac749eb0
-docs/implementation/api-client-platform.zh.md: 0b11a9d059a6a6e41d067ff16e1a0317709f0fda
-
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/implementation/api-client-platform.md
+api-client-platform.md: b0438470f9ea69510953690a68cc9be830f2d43b
+api-client-platform.zh.md: 8279f682424bf6a91d70e8d720983cd37e614639
