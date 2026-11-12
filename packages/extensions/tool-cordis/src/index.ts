@@ -32,6 +32,8 @@ export function apply(ctx: Context): void {
       schema: { type: 'json' },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
+    // Listing reads the Provider registry without mutating it.
+    isConcurrencySafe: () => true,
     execute(_args, _exec): Promise<JsonValue> {
       return Promise.resolve({ providers: ctx.cordisInspect.list() } as unknown as JsonValue)
     },
@@ -44,9 +46,9 @@ export function apply(ctx: Context): void {
       'Run a read-only query declared by an Inspect Provider. platform, provider, and method must come from '
       + 'cordis_inspect_list, and input must satisfy that method\'s schema. Use this Tool before writing plugin code '
       + 'to read exact Service methods, Event modes, plugin Config schemas, Tool schemas, theme tokens, or live '
-      + 'Slot trees and props. Host queries run locally. A Client query waits for the first valid page response and '
-      + 'remains pending until a page answers or the Tool is cancelled. This Tool cannot invoke business Service '
-      + 'methods or modify the runtime.',
+      + 'Slot trees and props. Host queries run locally. A Client query waits for the first valid page response '
+      + 'within the configured timeout; otherwise it reports a Client failure or asks you to reconnect and retry. '
+      + 'This Tool cannot invoke business Service methods or modify the runtime.',
     parameters: {
       platform: { type: 'string', required: true, enum: ['host', 'client'], description: 'Runtime platform that owns the Provider.' },
       provider: { type: 'string', required: true, description: 'Exact Provider ID returned by cordis_inspect_list.' },
@@ -57,6 +59,8 @@ export function apply(ctx: Context): void {
       schema: { type: 'json' },
       render: (_args, value) => [{ type: 'text', text: JSON.stringify(value, null, 2) }],
     },
+    // Provider methods are read-only, and each Client query settles by its own request id.
+    isConcurrencySafe: () => true,
     async execute(args, exec) {
       const data = await ctx.cordisInspect.query(
         args.platform,

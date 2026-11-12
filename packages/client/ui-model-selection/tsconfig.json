@@ -9,6 +9,9 @@
   ],
   "references": [
     {
+      "path": "../../core/agent"
+    },
+    {
       "path": "../../api/remotes/tsconfig.client.json"
     },
     {
@@ -52,6 +55,9 @@
     },
     {
       "path": "../../util/values"
+    },
+    {
+      "path": "../product-analytics/tsconfig.client.json"
     }
   ]
 }

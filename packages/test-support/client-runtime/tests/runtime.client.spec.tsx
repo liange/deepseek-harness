@@ -1,3 +1,4 @@
+import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 // @vitest-environment jsdom
 /**
  * SlotTestRuntime behavior: root declaration + rendering, session
@@ -238,6 +239,7 @@ describe('sessions', () => {
           values: { subagentCatalog: [
             { createdAt: 1, id: 'other' as SessionId, mode: 'one-shot' },
             { createdAt: 2, id: 'child' as SessionId, mode: 'continuable', label: 'Child' },
+            { createdAt: 3, id: 'external' as SessionId, mode: 'external' },
           ] },
         },
       }
@@ -247,6 +249,7 @@ describe('sessions', () => {
       parentSessionId: parentId, childSessionId: 'child', mode: 'continuable',
     })
     expect(runtime.sessions.subagentAddress('missing' as SessionId)).toBeUndefined()
+    expect(runtime.sessions.subagentAddress('external' as SessionId)).toBeUndefined()
     expect(runtime.sessions.binding(parentId)).toBeUndefined()
     expect(runtime.sessions.binding('child')).toBeUndefined()
     await runtime.dispose()
@@ -557,23 +560,22 @@ describe('workspaces', () => {
     expect(view.container.textContent).toContain('ws:pending')
     await runtime.dispose()
   })
-  it('skips default initialization without a fixture and forwards a configured request and lifetime', async () => {
+  it('skips default initialization without a fixture and forwards the caller lifetime', async () => {
     const runtime = await SlotTestRuntime.create()
     try {
-      const request = { directoryName: 'default-workspace', title: 'Default workspace' }
       const signal = new AbortController().signal
-      await expect(runtime.workspaces.initializeDefault(request, signal)).resolves.toBeUndefined()
+      await expect(runtime.workspaces.initializeDefault(signal)).resolves.toBeUndefined()
       const workspace = {
-        workspaceId: 'default' as WorkspaceId, title: request.title, path: '/default', sessionIds: [],
+        workspaceId: 'default' as WorkspaceId, title: 'default-workspace', path: '/default', sessionIds: [],
         createdAt: '2026-09-20T00:00:00Z', updatedAt: '2026-09-20T00:00:00Z',
       }
       const initialize = vi.fn(async () => workspace)
       runtime.workspaces.stub('initializeDefault', initialize)
-      await expect(runtime.workspaces.initializeDefault(request, signal)).resolves.toBe(workspace)
-      expect(initialize).toHaveBeenCalledWith(request, signal)
+      await expect(runtime.workspaces.initializeDefault(signal)).resolves.toBe(workspace)
+      expect(initialize).toHaveBeenCalledWith(signal)
       expect(runtime.workspaces.calls).toEqual([
-        { method: 'initializeDefault', args: [request, signal] },
-        { method: 'initializeDefault', args: [request, signal] },
+        { method: 'initializeDefault', args: [signal] },
+        { method: 'initializeDefault', args: [signal] },
       ])
     } finally {
       await runtime.dispose()
@@ -739,11 +741,14 @@ describe('fixture session face', () => {
     await runtime.sessions.add({ id: 's1' })
     const bare = runtime.sessions.behavior('s1')
     expect(() => bare.prompt()).toThrow(/prompt is not stubbed/)
-    expect(() => bare.readAttachment('att-1' as Parameters<typeof bare.readAttachment>[0])).toThrow(/readAttachment is not stubbed/)
+    expect(() => bare.readAttachment({
+      attachmentId: AttachmentId('att-1'), mediaType: 'image/png', bytes: 1, width: 1, height: 1,
+    })).toThrow(/readAttachment is not stubbed/)
     expect(() => bare.updateQueue()).toThrow(/updateQueue is not stubbed/)
     expect(() => bare.cancel()).toThrow(/cancel is not stubbed/)
     expect(() => bare.command()).toThrow(/command is not stubbed/)
     expect(() => bare.loadOlder()).toThrow(/loadOlder is not stubbed/)
+    expect(() => bare.consumeOlder()).toThrow('test session "s1": consumeOlder is not stubbed — supply it on the fixture\'s session face')
     expect(() => bare.loadThrough()).toThrow(/loadThrough is not stubbed/)
     expect(() => bare.rename()).toThrow(/rename is not stubbed/)
     const submission = bare.beginSubmission()

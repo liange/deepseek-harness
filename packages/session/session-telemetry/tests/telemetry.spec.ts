@@ -1,12 +1,12 @@
-import { createAssistantMessage, createToolResultMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 /**
  * Coordinator semantics against a bare fake backend — the RFC's named unit
  * tier for the seam: adoption (fresh, seeded, re-adoption via the handoff
  * cursor), lifecycle-suffix replay, deep-copy isolation, turn-latency and
  * dispose-ordering pins, failure containment, and the `agent/error` relay.
  */
+import { createAssistantMessage, createToolResultMessage, createUserMessage, ToolCallId } from '@deepseek-ai/dsh-llm'
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionStore, {
   SESSION_FORMAT_VERSION,
@@ -135,6 +135,12 @@ describe('SessionTelemetryCoordinator capture', () => {
     ;(message.body as { content: { text: string }[] }).content[0]!.text = 'tampered'
     const logged = session.snapshotEvents()[1] as SessionEvent<'user/message'>
     expect(logged.data.content[0]).toMatchObject({ text: 'hello' })
+    expect(message.sourceEvent?.sessionId).toBe(session.id)
+    expect(message.sourceEvent?.envelope).not.toHaveProperty('data')
+    expect(message.sourceEvent?.envelope).toMatchObject({ seq: logged.seq, time: logged.time, type: logged.type, surfaceOp: 'append' })
+    expect(message.sourceEvent?.envelope).not.toBe(logged)
+    message.sourceEvent!.envelope.time = 0
+    expect(logged.time).not.toBe(0)
   })
 
   it('captures a live request header without replaying previously withheld events', async () => {
@@ -489,9 +495,9 @@ describe('SessionTelemetryCoordinator adoption', () => {
       apply: (inner: Context) => void new SessionTelemetryCoordinator(inner, backend),
     })
     const child = ctx.sessions.prepare(SessionId('seeded'), { seed: [...parent.snapshotEvents()], meta: {} })
-    child.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
-    ctx.sessions.enter(child)
+    ctx.effect(() => ctx.sessions.enter(child))
     ctx.sessions.announce(child)
+    child.append('turn/end', { turn: 1, reason: { kind: 'completed' } })
 
     const seqs = backend.ledger().map(r => [r.attributes['session.id'], r.attributes['event.seq']])
     expect(seqs).toEqual(expect.arrayContaining([['seed-parent', 0], ['seed-parent', 1]]))
@@ -565,25 +571,28 @@ describe('SessionTelemetryCoordinator adoption', () => {
     expect(record.attributes['session.seed_length']).toBe(2)
   })
 
-  it('adopts exactly once when created fires after the sweep', async () => {
+  it.each([false, true])('adopts exactly once when created fires after the sweep with includeHistory=%s', async (includeHistory) => {
     const backend = new FakeBackend()
     const ctx = new Context()
+    onTestFinished(() => ctx.fiber.dispose())
     await ctx.plugin(SessionStore)
     // The enter/announce window: prepare+enter puts the session in the store
     // (visible to the constructor sweep) before `session/created` fires, so a
     // coordinator loaded inside that window sees the session twice — sweep
     // first, created second. The second adoption must be a no-op.
-    const session = ctx.sessions.prepare(SessionId('overlap'))
-    appendTurn(session)
-    ctx.sessions.enter(session)
+    const seed = Session.create(SessionId('overlap-seed'))
+    appendTurn(seed)
+    const session = ctx.sessions.prepare(SessionId('overlap'), { seed: seed.snapshotEvents() })
+    ctx.effect(() => ctx.sessions.enter(session))
     await ctx.plugin({
       name: 'fake-telemetry',
       inject: ['sessions'],
-      apply: (inner: Context) => void new SessionTelemetryCoordinator(inner, backend),
+      apply: (inner: Context) => void new SessionTelemetryCoordinator(inner, backend, { includeHistory }),
     })
-    expect(backend.ledger()).toHaveLength(2)
+    const expected = includeHistory ? ['turn/start', 'user/message', 'session/end-seed'] : ['session/end-seed']
+    expect(backend.ledger().map(record => record.attributes['event.type'])).toEqual(expected)
     ctx.sessions.announce(session)
-    expect(backend.ledger()).toHaveLength(2)
+    expect(backend.ledger().map(record => record.attributes['event.type'])).toEqual(expected)
   })
 
   it('resumes from the handoff cursor across same-object re-adoption without duplicates', async () => {

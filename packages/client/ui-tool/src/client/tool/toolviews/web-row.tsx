@@ -2,7 +2,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { IconBrowseOutlineRegular, IconGlobeOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ToolCallViewProps } from '../../contract/slots.ts'
-import { webCardModel } from '../models/web-card-model.ts'
+import { webCardModel, webFetchHref } from '../models/web-card-model.ts'
 import { toolRowModel } from '../models/tool-call-model.ts'
 import { ToolRow } from '../components/ToolRow.tsx'
 import { CONVERSATION_NS as NS } from '../../locale.ts'
@@ -15,12 +15,15 @@ const WEB_TITLE_KEYS = {
 } as const
 
 /** Lets users expand a completed web search or fetch result. */
-export function WebRow({ toolName, block, inspect, useDisclosure, t }: WebRowProps) {
+export function WebRow({ toolName, block, useContextMenu, sessionId, inspect, useDisclosure, t }: WebRowProps) {
+  const { getTriggerProps } = useContextMenu()
+  const href = webFetchHref(block)
   const model = toolRowModel(toolName, block)
   const web = webCardModel(block)
   const icon = toolName === 'web_fetch' ? <IconBrowseOutlineRegular size={14} /> : <IconGlobeOutlineRegular size={14} />
   return (
     <ToolRow
+      urlContextMenuProps={getTriggerProps(href === undefined ? undefined : { kind: 'url', value: { sessionId, url: href } })}
       useDisclosure={useDisclosure}
       t={t}
       variant={model.variant}
@@ -33,6 +36,7 @@ export function WebRow({ toolName, block, inspect, useDisclosure, t }: WebRowPro
       output={model.output}
       errorSummary={model.errorSummary}
       web={web}
+      href={href}
       state={model.state}
       inspect={inspect}
     />

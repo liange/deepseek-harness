@@ -10,6 +10,9 @@
       "path": "../../util/package-manifest"
     },
     {
+      "path": "../../util/official-bundles"
+    },
+    {
       "path": "../../../vendor/cordis"
     },
     {
@@ -47,6 +50,9 @@
     },
     {
       "path": "../ui-settings/tsconfig.client.json"
+    },
+    {
+      "path": "../product-analytics/tsconfig.client.json"
     }
   ],
   "include": [

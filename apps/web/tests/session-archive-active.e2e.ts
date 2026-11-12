@@ -162,7 +162,7 @@ describe.skipIf(MODE === 'record')('web e2e: archiving a running Session stops i
     // A foreground Bash command is a registered job from its start, so the
     // Host reports it beside the turn; stopping the turn kills it.
     await expect.poll(() => dialog.getByRole('list', { name: 'Work that will be stopped' }).locator('li').allTextContents())
-      .toEqual(['The turn in progress', `1 background job: ${WAIT_COMMAND}`])
+      .toEqual([`1 background job: ${WAIT_COMMAND}`, 'The turn in progress'])
     // Asking is not archiving: the Host set is untouched, the turn and its
     // Bash child keep running, and the row stays in the sidebar.
     expect([...scaffold.ctx.workspaceRegistry.archivedSessionIds]).toEqual([])
@@ -218,7 +218,7 @@ describe.skipIf(MODE === 'record')('web e2e: archiving a running Session stops i
   it('the restored Session continues the conversation from a regular log', async () => {
     onTestFailed(() => saveFailureShot(page, 'web-e2e-session-archive-active-restore'))
     await page.getByRole('button', { name: 'View options' }).click()
-    await page.getByRole('menuitem', { name: 'Show archived', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'All conversations (show archived)', exact: true }).click()
     await expect.poll(() => sessionRow().count(), { timeout: 10_000 }).toBe(1)
     await clickHoverAction(sessionRow(), 'Session actions for ')
     await page.getByRole('menuitem', { name: 'Unarchive session' }).click()

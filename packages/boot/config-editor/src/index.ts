@@ -2,7 +2,7 @@
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
-import { Context, FiberState, Service, resolveConfig } from '@deepseek-ai/cordis'
+import { Context, FiberState, Service } from '@deepseek-ai/cordis'
 import { entryListSchema, type PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import yaml from 'js-yaml'
 import type { Entry, EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
@@ -49,8 +49,20 @@ export class ConfigEditor extends Service {
   configuration(): Array<{ entry: Entry; inherited: Record<string, unknown>; override: Record<string, unknown> }> {
     const profile = this.ownerContext.profileContext
     const loaded = loadProfileDirectory('dsh', profile.dir, profile.installAnchor)
-    return this.entries().map(entry => ({
-      entry, inherited: this.inherited(entry, loaded),
+    const entries = this.entries()
+    // An own config key can replace inherited config even when its value is undefined.
+    const overridden = new Set(loaded.patches.filter(patch => patch.insert === undefined && Object.hasOwn(patch, 'config')).map(patch => patch.id))
+    const composed = new Map<string, EntryOptions>()
+    if (entries.some(entry => !overridden.has(entry.options.id))) {
+      for (const row of flatten(composeEntries([...loaded.layers.map(layer => layer.patches), loaded.patches]))) {
+        if (!composed.has(row.id)) composed.set(row.id, row)
+      }
+    }
+    return entries.map(entry => ({
+      entry,
+      inherited: overridden.has(entry.options.id)
+        ? this.inherited(entry, loaded)
+        : structuredClone((composed.get(entry.options.id)?.config ?? {}) as Record<string, unknown>),
       override: structuredClone((loaded.patches.findLast(
         row => row.id === entry.options.id && row.config !== undefined,
       )?.config ?? {}) as Record<string, unknown>),
@@ -88,8 +100,7 @@ export class ConfigEditor extends Service {
         const next = change(current, inherited)
         const fiber = entry.fiber
         if (fiber.state !== FiberState.ACTIVE) throw new Error('Configuration plugin is no longer active')
-        const resolved: unknown = fiber.ctx.waterfall(fiber, 'internal/config', next, () => next)
-        resolveConfig(fiber.runtime as NonNullable<typeof fiber.runtime>, resolved)
+        fiber.resolveConfig(next)
         let before: string
         try { before = await readFile(path, 'utf8') }
         catch (error) {

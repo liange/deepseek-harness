@@ -5,10 +5,10 @@ import { createReadStream } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, join, resolve } from 'node:path'
 import { dump, load } from 'js-yaml'
-import { prerelease } from 'semver'
 import type { DesktopPackageTargetName } from './package-target.ts'
 import {
   desktopBuildRecordFilename,
+  desktopLatestInstallerFilename,
   desktopUpdateMetadataFilename,
   resolveDesktopUploadConfig,
 } from './desktop-auto-update-environment.mjs'
@@ -33,16 +33,19 @@ export interface DesktopUploadArtifact {
   readonly filename: string
   readonly key: string
   readonly contentType: string
+  /** Browser save name for fixed website downloads, preserving the validated installer basename. */
+  readonly contentDisposition?: string
   readonly channelMetadata: boolean
   /** Published YAML with normalized artifact URLs; binary bytes remain file-backed. */
   readonly contents?: string
 }
 
-/** A fully validated upload operation with channel metadata ordered last. */
+/** A validated installer or update upload, with any channel metadata ordered last. */
 export interface DesktopUploadPlan {
   readonly environment: 'test' | 'production'
   readonly target: DesktopPackageTargetName
   readonly version: string
+  /** Update feed directory URL, or the single installer URL for a fixed download. */
   readonly publicUrl: string
   readonly bucket: string
   readonly secretIdEnvName: string
@@ -56,10 +59,16 @@ export interface DesktopUploadPlan {
 
 /** Filesystem and environment inputs used to validate one upload. */
 export interface DesktopUploadPlanOptions {
+  /** Publish only the installer at its fixed download URL, replacing the previous object. */
+  readonly latest?: boolean
+  /** Percentage of installations eligible for this publication; absent preserves packaged metadata. */
+  readonly stagingPercentage?: number | undefined
   readonly environment?: NodeJS.ProcessEnv
   readonly repositoryRoot?: string
   readonly appRoot?: string
   readonly artifactsRoot?: string
+  /** Original product version from a verified retained build; absent reads the checkout manifests. */
+  readonly packagedProductVersion?: string
 }
 
 interface UpdateFileInfo {
@@ -171,7 +180,7 @@ function uploadArtifact(
  * Validate the completed package record, dsh version, update metadata, hashes, and target files.
  * @param targetName - Fixed platform and architecture selected by the upload command.
  * @param options - Optional filesystem roots and environment for tests or release automation.
- * @returns An upload plan whose mutable channel metadata is the final entry.
+ * @returns A fixed installer upload or an update plan with channel metadata ordered last.
  */
 export async function createDesktopUploadPlan(
   targetName: DesktopPackageTargetName,
@@ -185,8 +194,8 @@ export async function createDesktopUploadPlan(
   const repositoryRoot = options.repositoryRoot ?? REPOSITORY_ROOT
   const appRoot = options.appRoot ?? APP_ROOT
   const artifactsRoot = options.artifactsRoot ?? desktopTargetBuildPaths(targetName).artifacts
-  const dshVersion = await manifestVersion(join(repositoryRoot, 'package.json'), 'dsh package')
-  const desktopVersion = await manifestVersion(join(appRoot, 'package.json'), 'desktop package')
+  const dshVersion = options.packagedProductVersion ?? await manifestVersion(join(repositoryRoot, 'package.json'), 'dsh package')
+  const desktopVersion = options.packagedProductVersion ?? await manifestVersion(join(appRoot, 'package.json'), 'desktop package')
   if (dshVersion !== desktopVersion) {
     throw new Error(`desktop upload: desktop version ${desktopVersion} does not match current dsh version ${dshVersion}`)
   }
@@ -208,12 +217,13 @@ export async function createDesktopUploadPlan(
   }
   if (buildRecord.schemaVersion !== 1
     || buildRecord.target !== targetName
+    || (buildRecord.channel ?? 'nightly') !== update.channel
     || buildRecord.environment !== update.environment
     || buildRecord.publicUrl !== update.publicUrl) {
     throw new Error(`desktop upload: ${targetName} package completion record for ${buildVersion} does not match the ${update.environment} update destination`)
   }
 
-  const metadataFilename = desktopUpdateMetadataFilename(buildVersion, target.platform)
+  const metadataFilename = desktopUpdateMetadataFilename(buildVersion, target.platform, update.channel)
   const metadataPath = join(artifactsRoot, metadataFilename)
   let metadataValue: unknown
   try {
@@ -237,29 +247,33 @@ export async function createDesktopUploadPlan(
   const updaterPath = await verifyChecksummedArtifact(artifactsRoot, updaterInfo)
   const artifacts: DesktopUploadArtifact[] = []
   const binaryPrefix = update.binaryKeyPrefix
+  let installerArtifact: DesktopUploadArtifact
 
   if (target.platform === 'darwin') {
     const dmgPath = await requireArtifact(artifactsRoot, `${base}.dmg`)
     const blockmapPath = await requireArtifact(artifactsRoot, `${base}.zip.blockmap`)
+    installerArtifact = uploadArtifact(dmgPath, binaryPrefix, 'application/x-apple-diskimage')
     artifacts.push(
-      uploadArtifact(dmgPath, binaryPrefix, 'application/x-apple-diskimage'),
+      installerArtifact,
       uploadArtifact(updaterPath, binaryPrefix, 'application/zip'),
       uploadArtifact(blockmapPath, binaryPrefix, 'application/octet-stream'),
     )
   }
   else {
     const blockmapPath = await requireArtifact(artifactsRoot, `${base}.exe.blockmap`)
-    artifacts.push(uploadArtifact(
+    installerArtifact = uploadArtifact(
       updaterPath,
       binaryPrefix,
       'application/vnd.microsoft.portable-executable',
-    ))
+    )
+    artifacts.push(installerArtifact)
     artifacts.push(uploadArtifact(blockmapPath, binaryPrefix, 'application/octet-stream'))
   }
 
   const payloadUrl = `${update.origin}/${binaryPrefix}/${updaterInfo.filename}`
   const published = {
     ...metadata,
+    ...(options.stagingPercentage === undefined ? {} : { stagingPercentage: options.stagingPercentage }),
     files: [{ ...object(metadata.files[0], `${metadataFilename}.files[0]`), url: payloadUrl }],
     ...(metadata.path === undefined ? {} : { path: payloadUrl }),
   }
@@ -268,19 +282,18 @@ export async function createDesktopUploadPlan(
     contents: dump(published),
   }
   artifacts.push(channelArtifact)
-  if (prerelease(buildVersion) === null) {
-    const stableFilename = metadataFilename.replace('nightly', 'latest')
-    artifacts.push({ ...channelArtifact, filename: stableFilename, key: `${update.keyPrefix}/${stableFilename}` })
-  }
+  const latestFilename = desktopLatestInstallerFilename(targetName)
+  const latestKey = `desktop/${latestFilename}`
   return {
     environment: update.environment,
     target: targetName,
     version: buildVersion,
-    publicUrl: update.publicUrl,
+    publicUrl: options.latest ? `${update.origin}/${latestKey}` : update.publicUrl,
     bucket: update.bucket,
     secretIdEnvName: update.secretIdEnvName,
     secretKeyEnvName: update.secretKeyEnvName,
-    artifacts,
+    artifacts: options.latest ? [{ ...installerArtifact, filename: latestFilename, key: latestKey,
+      contentDisposition: `attachment; filename="${installerArtifact.filename}"` }] : artifacts,
     ...typeof buildRecord.commit === 'string' ? { commit: buildRecord.commit } : {},
     ...typeof buildRecord.dirty === 'boolean' ? { dirty: buildRecord.dirty } : {},
   }

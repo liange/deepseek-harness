@@ -153,6 +153,7 @@ export async function summarizeWithLlm(
     provider: target.provider,
     model: target.model,
     messages,
+    toolHistory: agent.session.toolHistory(),
     ...input.tools === undefined ? {} : { tools: [...input.tools] },
     maxTokens: config.maxTokens,
     sessionId: agent.session.id,
@@ -197,7 +198,7 @@ function finishError(finish: FinishReason): Error | undefined {
   switch (finish.kind) {
     case 'error':
     case 'aborted': {
-      return new LlmError(finish.failure.message, finish.failure.code, finish.failure)
+      return LlmError.fromFailure(finish.failure)
     }
     case 'max-tokens': {
       const error = new Error('summarization truncated at the token cap (incomplete checkpoint)') as Error & { code?: string }
