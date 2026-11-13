@@ -3,7 +3,8 @@
 # separate sequences with their own workflows and version lines.
 #
 # Pack and dependency-layout verification run without credentials on every pull
-# request and master push. Publication is a manual workflow_dispatch of
+# request and master push of the upstream repository; a fork mirror only repeats
+# the same pack for no verdict. Publication is a manual workflow_dispatch of
 # release-publish.yml from a dsh-v* tag.
 name: Release (dsh)
 
@@ -28,6 +29,7 @@ env:
 jobs:
   dependencies:
     name: Dependency layout
+    if: github.repository == 'deepseek-ai/deepseek-harness'
     # Persistent runners accept only trusted, credential-free rehearsals.
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith' && 'blacksmith-4vcpu-ubuntu-2404'
@@ -98,6 +100,7 @@ jobs:
 
   pack:
     name: Pack npm tarballs
+    if: github.repository == 'deepseek-ai/deepseek-harness'
     # Persistent runners accept only trusted, credential-free rehearsals.
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'

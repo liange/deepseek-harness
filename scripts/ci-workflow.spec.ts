@@ -13,6 +13,10 @@ function evaluateRunsOn(selector: unknown, context: Record<string, unknown>): un
 const root = resolve(import.meta.dirname, '..')
 const runnerPrivatePnpmDestination = /^\$\{\{ runner\.temp \}\}\/setup-pnpm-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}$/
 const nativeWindowsPnpmDestination = '${{ runner.temp }}/setup-pnpm-js-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}'
+// Master-only post-merge lanes run on the upstream repository only: a fork
+// mirror has no self-hosted pool and no API credentials to produce a verdict.
+const upstreamRepository = "github.repository == 'deepseek-ai/deepseek-harness'"
+const masterPush = `${upstreamRepository} && github.event_name == 'push' && github.ref == 'refs/heads/master'`
 
 describe('CI workflow', () => {
   it('keeps at most eleven worker jobs active across PR workflows while Python runtime targets follow the SDK suite', () => {
@@ -511,7 +515,7 @@ describe('CI workflow', () => {
     expect(report?.run).toContain('Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append')
 
     // serial-windows: master-only standby, self-hosted, non-blocking, lives in ci-master.
-    expect(serialWindows.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
+    expect(serialWindows.if).toBe(masterPush)
     expect(serialWindows['runs-on']).toEqual(['self-hosted', 'dsh-win-ci', 'windows'])
     expect(serialWindows.name).toBe('serial / windows (self-hosted standby)')
     // Its store must share the ReFS workspace volume for clone; the install
@@ -791,13 +795,13 @@ describe('CI workflow', () => {
       ['workflow_dispatch', 'refs/heads/topic', 'larger-runner-benchmark', false],
       ['workflow_dispatch', 'refs/heads/topic', 'consolidated-runner-benchmark', false],
     ] as const) {
-      expect(runInNewContext(wine.if, { github: { event_name: event, ref }, inputs: { suite } }, { timeout: 1000 })).toBe(expected)
+      expect(runInNewContext(wine.if, { github: { event_name: event, ref, repository: 'deepseek-ai/deepseek-harness' }, inputs: { suite } }, { timeout: 1000 })).toBe(expected)
     }
     const enabled = Object.entries(master.jobs).filter(([, job]) => {
       if (!isRecord(job)) throw new TypeError('CI master jobs must be objects')
       if (typeof job.if === 'boolean') return job.if
       if (typeof job.if !== 'string') throw new TypeError('CI master jobs must define trigger conditions')
-      return runInNewContext(job.if, { github: { event_name: 'workflow_dispatch', ref: 'refs/heads/topic' }, inputs: { suite: 'wine' } }, { timeout: 1000 }) === true
+      return runInNewContext(job.if, { github: { event_name: 'workflow_dispatch', ref: 'refs/heads/topic', repository: 'deepseek-ai/deepseek-harness' }, inputs: { suite: 'wine' } }, { timeout: 1000 }) === true
     }).map(([name]) => name)
     expect(enabled).toEqual(['windows'])
   })
@@ -846,7 +850,7 @@ describe('CI workflow', () => {
       if (!isRecord(job)) throw new TypeError(`${name} must be defined`)
       expect(job.concurrency).toBeUndefined()
       // Standby drills remain post-merge work, but share run cancellation.
-      expect(job.if).toBe("github.event_name == 'push' && github.ref == 'refs/heads/master'")
+      expect(job.if).toBe(masterPush)
     }
 
     // Pin the post-merge runtime, Wine, and standby inventory.

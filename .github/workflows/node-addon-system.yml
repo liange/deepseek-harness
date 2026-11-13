@@ -3,6 +3,10 @@
 # the harness Node matrix. Each platform job builds once and tests those bytes
 # under every supported Node release. Release assembly and publication use the
 # companion Node Addon System Release workflow.
+#
+# Both jobs require the upstream repository: the matrix proves native bytes for
+# that sequence, and a fork mirror owns neither the packages nor the release it
+# gates.
 name: Node Addon System
 
 on:
@@ -44,6 +48,7 @@ defaults:
 jobs:
   matrix:
     name: Matrix
+    if: github.repository == 'deepseek-ai/deepseek-harness'
     runs-on: ubuntu-24.04
     outputs:
       ci: ${{ steps.matrix.outputs.ci }}
@@ -56,6 +61,7 @@ jobs:
   native:
     name: ${{ matrix.platform }}
     needs: matrix
+    if: github.repository == 'deepseek-ai/deepseek-harness'
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false

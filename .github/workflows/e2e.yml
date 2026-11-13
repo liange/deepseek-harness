@@ -27,6 +27,10 @@ name: E2E (real DeepSeek API)
 #
 # Note: scheduled triggers are auto-disabled after 60 days of repo inactivity;
 # push/pull_request/workflow_dispatch act as backstops.
+#
+# The job condition also requires the upstream repository: a fork mirror holds no
+# DEEPSEEK_API_KEY_EXTERNAL, so every scheduled or push-triggered run there would
+# hard-fail the preflight and report a keyless false red.
 on:
   workflow_dispatch:
   push:
@@ -57,11 +61,13 @@ jobs:
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'blacksmith'
           && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-latest' }}
     name: e2e
-    # Run on every trusted event. Skip untrusted PRs (forks + Dependabot) where
-    # the secret is withheld — they would otherwise hard-fail the preflight.
+    # Run on every trusted event of the upstream repository. Skip untrusted PRs
+    # (forks + Dependabot) where the secret is withheld — they would otherwise
+    # hard-fail the preflight.
     if: >-
-      github.event_name != 'pull_request'
-      || !(github.event.pull_request.head.repo.fork || github.event.pull_request.user.login == 'dependabot[bot]')
+      github.repository == 'deepseek-ai/deepseek-harness'
+      && (github.event_name != 'pull_request'
+      || !(github.event.pull_request.head.repo.fork || github.event.pull_request.user.login == 'dependabot[bot]'))
     # Profile e2e files can each own several complete dsh subprocess trees, so
     # four file workers preserve process/PTY headroom. Tests retain 120s/test
     # and retry 2; 45m still bounds retry storms against a slow API.

@@ -2,7 +2,8 @@
 # vendor/, each on its own version line. This sequence releases independently of
 # dsh and of the native packages.
 #
-# Pack runs without credentials on every pull request and master push.
+# Pack runs without credentials on every pull request and master push of the
+# upstream repository; a fork mirror only repeats the same pack for no verdict.
 # Publication is a manual workflow_dispatch of release-vendor-publish.yml from a
 # vendor-* tag; a vendor release can carry several versions, so each package has
 # its own tag.
@@ -29,6 +30,7 @@ env:
 jobs:
   pack:
     name: Pack npm tarballs
+    if: github.repository == 'deepseek-ai/deepseek-harness'
     # Persistent runners accept only trusted, credential-free rehearsals.
     runs-on: >-
       ${{ vars.DSH_CI_FAILOVER_LINUX == 'selfhosted'
